@@ -22,9 +22,23 @@ pub fn main() !void {
     // .{...} is a struct literal
     // It initializes a struct with named fields
     var file_content_buf: [PROC_FILE_BUF_SIZE]u8 = undefined;
-    // This allocator is ONLY responsible for the path_buffer
-    var fba: std.heap.FixedBufferAllocator = std.heap.FixedBufferAllocator.init(&file_content_buf);
-    const allocator = fba.allocator();
+    var pids_buf: [PID_ARRAY_BUF_SIZE]u8 = undefined;
+    var pid_string_buf: [PID_STRING_BUF_SIZE]u8 = undefined;
+
+    // This allocator is ONLY responsible for its buffer
+    var file_content_buf_fba: std.heap.FixedBufferAllocator = std.heap.FixedBufferAllocator.init(&file_content_buf);
+    var pids_buf_fba: std.heap.FixedBufferAllocator = std.heap.FixedBufferAllocator.init(&pids_buf);
+    var pid_string_buf_fba: std.heap.FixedBufferAllocator = std.heap.FixedBufferAllocator.init(&pid_string_buf);
+
+    const file_content_allocator = file_content_buf_fba.allocator();
+    const pids_buf_allocator = pids_buf_fba.allocator();
+    const pid_string_allocator = pid_string_buf_fba.allocator();
+
+    var pids = std.ArrayList(u32).init(pids_buf_allocator);
+    defer pids.deinit();
+
+    try pids.append(1);
+    try pids.append(2);
 
     var dir: std.fs.Dir = try std.fs.openDirAbsolute(PROC_PATH, .{
         .access_sub_paths = false,
@@ -33,23 +47,31 @@ pub fn main() !void {
     });
     defer dir.close();
 
-    const mem = try allocator.alloc(u8, PROC_FILE_BUF_SIZE);
-    defer allocator.free(mem);
-    var d: std.fs.Dir = try findDir(
-        dir,
-        "1",
-    );
-    defer d.close();
+    const mem = try file_content_allocator.alloc(u8, PROC_FILE_BUF_SIZE);
+    defer file_content_allocator.free(mem);
 
-    const file: std.fs.File = try findFile(
-        d,
-        "status",
-    );
+    for (pids.items) |pid| {
+        const pid_string = try std.fmt.allocPrint(pid_string_allocator, "{d}", .{pid});
 
-    const file_reader = file.reader();
-    const bytes_read = try file_reader.read(mem);
-    std.debug.print("{d}\n", .{bytes_read});
-    std.debug.print("{s}\n", .{mem});
+        std.debug.print("Getting directory {s}\n", .{pid_string});
+
+        var d: std.fs.Dir = try findDir(
+            dir,
+            pid_string,
+        );
+        defer d.close();
+
+        std.debug.print("Looking for file status", .{});
+        const file: std.fs.File = try findFile(
+            d,
+            STATUS_FILENAME,
+        );
+
+        const file_reader = file.reader();
+        const bytes_read = try file_reader.read(mem);
+        std.debug.print("{d}\n", .{bytes_read});
+        std.debug.print("{s}\n", .{mem});
+    }
 }
 
 fn findFile(dir: std.fs.Dir, file_name: []const u8) anyerror!std.fs.File {
