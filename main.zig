@@ -103,5 +103,5 @@ fn findDir(dir: std.fs.Dir, dir_name: []const u8) anyerror!std.fs.Dir {
 
         return d;
     }
-    return error.FileNotFound;
+    return error.DirNotFound;
 }
