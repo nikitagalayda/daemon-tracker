@@ -14,6 +14,7 @@ const STATUS_FILENAME = "status";
 
 const FileOpenError = error{
     FileNotFound,
+    DirNotFound,
 };
 
 // ! before void means the function can return an error
