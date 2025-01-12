@@ -6,7 +6,11 @@
 const std = @import("std");
 
 const PROC_FILE_BUF_SIZE = 64;
+const PID_ARRAY_BUF_SIZE = 1024;
+const PID_STRING_BUF_SIZE = 32;
+
 const PROC_PATH = "/proc/";
+const STATUS_FILENAME = "status";
 
 const FileOpenError = error{
     FileNotFound,
