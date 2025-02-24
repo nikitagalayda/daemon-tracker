@@ -4,26 +4,16 @@
 // 3. Print out the results
 
 const std = @import("std");
-
-const PROC_FILE_BUF_SIZE = 64;
-const PID_ARRAY_BUF_SIZE = 1024;
-const PID_STRING_BUF_SIZE = 32;
-
-const PROC_PATH = "/proc/";
-const STATUS_FILENAME = "status";
-
-const FileOpenError = error{
-    FileNotFound,
-    DirNotFound,
-};
+const _constants = @import("constants.zig");
+const _errors = @import("errors.zig");
 
 // ! before void means the function can return an error
 pub fn main() !void {
     // .{...} is a struct literal
     // It initializes a struct with named fields
-    var file_content_buf: [PROC_FILE_BUF_SIZE]u8 = undefined;
-    var pids_buf: [PID_ARRAY_BUF_SIZE]u8 = undefined;
-    var pid_string_buf: [PID_STRING_BUF_SIZE]u8 = undefined;
+    var file_content_buf: [_constants.PROC_FILE_BUF_SIZE]u8 = undefined;
+    var pids_buf: [_constants.PID_ARRAY_BUF_SIZE]u8 = undefined;
+    var pid_string_buf: [_constants.PID_STRING_BUF_SIZE]u8 = undefined;
 
     // This allocator is ONLY responsible for its buffer
     var file_content_buf_fba: std.heap.FixedBufferAllocator = std.heap.FixedBufferAllocator.init(&file_content_buf);
@@ -38,22 +28,22 @@ pub fn main() !void {
     defer pids.deinit();
 
     try pids.append(1);
-    try pids.append(2);
+    // try pids.append(2);
 
-    var dir: std.fs.Dir = try std.fs.openDirAbsolute(PROC_PATH, .{
+    var dir: std.fs.Dir = try std.fs.openDirAbsolute(_constants.PROC_PATH, .{
         .access_sub_paths = false,
         .iterate = true,
         .no_follow = true,
     });
     defer dir.close();
 
-    const mem = try file_content_allocator.alloc(u8, PROC_FILE_BUF_SIZE);
+    const mem = try file_content_allocator.alloc(u8, _constants.PROC_FILE_BUF_SIZE);
     defer file_content_allocator.free(mem);
 
     for (pids.items) |pid| {
         const pid_string = try std.fmt.allocPrint(pid_string_allocator, "{d}", .{pid});
 
-        std.debug.print("Getting directory {s}\n", .{pid_string});
+        // std.debug.print("Getting directory {s}\n", .{pid_string});
 
         var d: std.fs.Dir = try findDir(
             dir,
@@ -61,17 +51,36 @@ pub fn main() !void {
         );
         defer d.close();
 
-        std.debug.print("Looking for file status", .{});
+        // std.debug.print("Looking for file status", .{});
         const file: std.fs.File = try findFile(
             d,
-            STATUS_FILENAME,
+            _constants.STATUS_FILENAME,
         );
-
         const file_reader = file.reader();
-        const bytes_read = try file_reader.read(mem);
-        std.debug.print("{d}\n", .{bytes_read});
-        std.debug.print("{s}\n", .{mem});
+        _ = try file_reader.read(mem);
+        const result = try getProcessState(mem);
+        std.debug.print("{s}", .{result});
     }
+}
+
+fn getProcessState(buf: []const u8) ![]const u8 {
+    // std.debug.print("{s}", .{buf});
+    // return;
+    var newline_split = std.mem.splitSequence(u8, buf, "\n");
+    while (newline_split.next()) |line| {
+        // std.debug.print("{s}", .{x});
+        if (std.mem.eql(u8, line[0..6], "State:")) {
+            std.debug.print("FOUND\n", .{});
+            var tab_split = std.mem.splitSequence(u8, line, "\t");
+            _ = tab_split.first();
+
+            // TODO: add verification
+            return tab_split.rest();
+        }
+    }
+
+    // TODO: make a better error name
+    return _errors.MatchError.MatchNotFound;
 }
 
 fn findFile(dir: std.fs.Dir, file_name: []const u8) anyerror!std.fs.File {
@@ -86,7 +95,7 @@ fn findFile(dir: std.fs.Dir, file_name: []const u8) anyerror!std.fs.File {
 
         return file;
     }
-    return error.FileNotFound;
+    return _errors.FileOpenError.FileNotFound;
 }
 
 fn findDir(dir: std.fs.Dir, dir_name: []const u8) anyerror!std.fs.Dir {
@@ -103,5 +112,5 @@ fn findDir(dir: std.fs.Dir, dir_name: []const u8) anyerror!std.fs.Dir {
 
         return d;
     }
-    return error.DirNotFound;
+    return _errors.FileOpenError.DirNotFound;
 }
