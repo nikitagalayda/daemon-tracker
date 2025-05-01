@@ -6,9 +6,29 @@
 const std = @import("std");
 const _constants = @import("constants.zig");
 const _errors = @import("errors.zig");
+const _argparser = @import("argparser.zig");
 
 // ! before void means the function can return an error
 pub fn main() !void {
+    // Args
+    var argsGPA = std.heap.GeneralPurposeAllocator(.{}){};
+    const argsAllocator = argsGPA.allocator();
+    defer _ = argsGPA.deinit();
+    const args: [][:0]u8 = try std.process.argsAlloc(argsAllocator);
+    defer std.process.argsFree(argsAllocator, args);
+    std.debug.print("---------ARGS INFO---------\n", .{});
+    std.debug.print("There are {d} args:\n", .{args.len});
+    for (args) |arg| {
+        std.debug.print("  {s}\n", .{arg});
+    }
+
+    const allValidArgs = _argparser.allArgsValid(args[1..]);
+    if (allValidArgs) {
+        std.debug.print("ALL ARGS VALID\n", .{});
+    }
+    std.debug.print("---------------------------\n", .{});
+
+    // Processing the proc files
     // .{...} is a struct literal
     // It initializes a struct with named fields
     var file_content_buf: [_constants.PROC_FILE_BUF_SIZE]u8 = undefined;
@@ -40,6 +60,7 @@ pub fn main() !void {
     const mem = try file_content_allocator.alloc(u8, _constants.PROC_FILE_BUF_SIZE);
     defer file_content_allocator.free(mem);
 
+    // Finding proc file for all PIDs
     for (pids.items) |pid| {
         const pid_string = try std.fmt.allocPrint(pid_string_allocator, "{d}", .{pid});
 
