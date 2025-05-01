@@ -22,10 +22,6 @@ pub fn main() !void {
         std.debug.print("  {s}\n", .{arg});
     }
 
-    const allValidArgs = _argparser.allArgsValid(args[1..]);
-    if (allValidArgs) {
-        std.debug.print("ALL ARGS VALID\n", .{});
-    }
     std.debug.print("---------------------------\n", .{});
 
     // Processing the proc files
@@ -45,10 +41,9 @@ pub fn main() !void {
     const pid_string_allocator = pid_string_buf_fba.allocator();
 
     var pids = std.ArrayList(u32).init(pids_buf_allocator);
-    defer pids.deinit();
 
-    try pids.append(1);
-    // try pids.append(2);
+    try _argparser.processArgs(args[1..], &pids);
+    defer pids.deinit();
 
     var dir: std.fs.Dir = try std.fs.openDirAbsolute(_constants.PROC_PATH, .{
         .access_sub_paths = false,

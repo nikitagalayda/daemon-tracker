@@ -6,3 +6,7 @@ pub const FileOpenError = error{
 pub const MatchError = error{
     MatchNotFound,
 };
+
+pub const ArgumentError = error{
+    InvalidArgument,
+};
