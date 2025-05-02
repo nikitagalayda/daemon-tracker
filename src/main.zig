@@ -7,6 +7,7 @@ const std = @import("std");
 const _constants = @import("config.zig");
 const _errors = @import("errors.zig");
 const _argparser = @import("argparser.zig");
+const _utils = @import("utils.zig");
 
 // ! before void means the function can return an error
 pub fn main() !void {
@@ -61,13 +62,13 @@ pub fn main() !void {
     for (pids.items) |pid| {
         const pid_string = try std.fmt.allocPrint(pid_string_allocator, "{d}", .{pid});
 
-        var d: std.fs.Dir = try findDir(
+        var d: std.fs.Dir = try _utils.findDir(
             dir,
             pid_string,
         );
         defer d.close();
 
-        const file: std.fs.File = try findFile(
+        const file: std.fs.File = try _utils.findFile(
             d,
             _constants.STATUS_FILENAME,
         );
@@ -93,36 +94,4 @@ fn getProcessState(buf: []const u8) ![]const u8 {
 
     // TODO: make a better error name
     return _errors.MatchError.MatchNotFound;
-}
-
-fn findFile(dir: std.fs.Dir, file_name: []const u8) anyerror!std.fs.File {
-    var dir_iterator = dir.iterate();
-
-    while (try dir_iterator.next()) |path| {
-        if (!std.mem.eql(u8, path.name, file_name)) {
-            continue;
-        }
-
-        const file: std.fs.File = try std.fs.Dir.openFile(dir, path.name, .{});
-
-        return file;
-    }
-    return _errors.FileOpenError.FileNotFound;
-}
-
-fn findDir(dir: std.fs.Dir, dir_name: []const u8) anyerror!std.fs.Dir {
-    var dir_iterator = dir.iterate();
-
-    while (try dir_iterator.next()) |path| {
-        if (!std.mem.eql(u8, path.name, dir_name)) {
-            continue;
-        }
-
-        const d: std.fs.Dir = try std.fs.Dir.openDir(dir, path.name, .{
-            .iterate = true,
-        });
-
-        return d;
-    }
-    return _errors.FileOpenError.DirNotFound;
 }
